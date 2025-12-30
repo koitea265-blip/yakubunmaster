@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>キラキラ！約分マスター</title>
+    <meta name="description" content="小学生向け：楽しく学べる分数の約分アプリ">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 日本語の手書き風フォント：Kiwi Maru -->
+    <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@500&display=swap" rel="stylesheet">
+    <style>
+        /* --- 基本設定 --- */
+        body {
+            font-family: 'Kiwi Maru', serif;
+            background-color: #FFF9F0; /* 目に優しいクリーム色 */
+            overflow: hidden; /* スクロール禁止 */
+            touch-action: none; /* ダブルタップズーム等の防止 */
+            user-select: none; /* テキスト選択防止 */
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* --- UIコンポーネント --- */
+        .fraction-line {
+            height: 4px;
+            background-color: #1F2937; /* gray-800 */
+            width: 100%;
+            border-radius: 2px;
+        }
+
+        /* ぷるんと押せるボタン */
+        .bubble-btn {
+            transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+        .bubble-btn:active {
+            transform: scale(0.92);
+        }
+
+        /* 入力ボックス */
+        .input-box {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .input-box.active {
+            background-color: #E0F2FE; /* blue-50 */
+            border-color: #3B82F6; /* blue-500 */
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+        }
+
+        /* テンキーのボタン */
+        .key-btn {
+            background: white;
+            border-bottom: 4px solid #E2E8F0; /* gray-200 */
+        }
+        .key-btn:active {
+            border-bottom-width: 0;
+            transform: translateY(4px);
+        }
+
+        /* 吹き出しスタイル */
+        .speech-bubble {
+            position: relative;
+            background: #ffffff;
+            border: 3px solid #FBCFE8; /* pink-200 */
+            border-radius: 1.2rem;
+            padding: 8px 12px;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.05));
+        }
+        /* 吹き出しのしっぽ（下） */
+        .bubble-bottom::after {
+            content: '';
+            position: absolute;
+            left: 50%; bottom: -12px; transform: translateX(-50%);
+            border-width: 12px 10px 0; border-style: solid;
+            border-color: #FBCFE8 transparent transparent;
+        }
+        .bubble-bottom::before {
+            content: '';
+            position: absolute;
+            left: 50%; bottom: -8px; transform: translateX(-50%);
+            border-width: 10px 8px 0; border-style: solid;
+            border-color: #ffffff transparent transparent;
+            z-index: 1;
+        }
+        /* 吹き出しのしっぽ（左） */
+        .bubble-left::after {
+            content: '';
+            position: absolute;
+            left: -12px; top: 50%; transform: translateY(-50%);
+            border-width: 8px 12px 8px 0; border-style: solid;
+            border-color: transparent #FBCFE8 transparent transparent;
+        }
+        .bubble-left::before {
+            content: '';
+            position: absolute;
+            left: -8px; top: 50%; transform: translateY(-50%);
+            border-width: 6px 10px 6px 0; border-style: solid;
+            border-color: transparent #ffffff transparent transparent;
+            z-index: 1;
+        }
+
+        /* --- アニメーション --- */
+        .float-anim {
+            animation: floating 3s ease-in-out infinite;
+        }
+        @keyframes floating {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-6px) rotate(2deg); }
+        }
+
+        .maru-anim {
+            animation: maru-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            opacity: 0;
+        }
+        @keyframes maru-pop {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        /* 伝説の王用：輝くオーラアニメーション */
+        @keyframes shine-spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg) scale(1); opacity: 0.8; }
+            50% { transform: translate(-50%, -50%) rotate(180deg) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) rotate(360deg) scale(1); opacity: 0.8; }
+        }
+        .legend-aura {
+            animation: shine-spin 4s linear infinite;
+            background: radial-gradient(circle, rgba(253,224,71,0.6) 0%, rgba(234,179,8,0.3) 60%, rgba(255,255,255,0) 80%);
+            box-shadow: 0 0 20px 5px rgba(250, 204, 21, 0.4);
+        }
+
+        /* --- メモ機能 & エフェクト --- */
+        #memo-layer {
+            position: absolute;
+            /* 問題の分数を中心に配置 */
+            width: 240px;
+            height: 280px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 60;
+            pointer-events: none; /* デフォルトは透過 */
+        }
+        #memo-layer.active {
+            pointer-events: auto;
+        }
+        .memo-container {
+            position: absolute; inset: 0;
+            border: 3px dashed #3B82F6;
+            border-radius: 1.5rem;
+            background: rgba(239, 246, 255, 0.6);
+            pointer-events: none;
+        }
+        #memo-canvas {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            touch-action: none; cursor: crosshair;
+        }
+
+        /* キャラクターとアクセサリーのラッパー */
+        .char-wrapper {
+            position: relative; display: inline-block;
+            /* 絵文字自体はz-index:10でマントやオーラの上に表示 */
+            z-index: 10;
+        }
+        /* 絵文字本体を相対配置してz-indexを効かせる */
+        .char-body {
+            position: relative; z-index: 10;
+        }
+        
+        .accessory {
+            position: absolute; pointer-events: none; z-index: 20;
+            display: flex; align-items: center; justify-content: center;
+        }
+        
+        /* オーラ（背景） */
+        .aura-bg {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 140%; height: 140%;
+            border-radius: 50%;
+            z-index: -10; /* キャラの真後ろ */
+            pointer-events: none;
+        }
+        
+        /* 赤いマント（CSS描画） */
+        .red-cape {
+            position: absolute;
+            bottom: 0px; left: 50%;
+            transform: translateX(-50%);
+            width: 120%; height: 80%;
+            background: #EF4444; /* red-500 */
+            border-radius: 40% 40% 10% 10%;
+            z-index: -5; /* オーラより前、キャラより後ろ */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 紙吹雪用キャンバス */
+        canvas#confetti-canvas {
+            pointer-events: none;
+            position: fixed; top: 0; left: 0;
+            z-index: 100;
+        }
+
+        /* カスタムセレクトボックス（矢印アイコン） */
+        .custom-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1rem;
+            padding-right: 2rem;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-2 sm:p-4">
+
+    <!-- アプリのメインコンテナ -->
+    <div id="app" class="bg-white p-4 rounded-[2rem] shadow-2xl border-4 sm:border-8 border-yellow-200 w-full h-[95vh] max-h-[800px] max-w-md flex flex-col relative overflow-hidden">
+        
+        <!-- ====================
+             スタート画面
+        ==================== -->
+        <div id="start-screen" class="absolute inset-0 z-[50] bg-white flex flex-col items-center justify-between p-4 text-center pb-8">
+            <div class="mt-4">
+                <h1 class="text-3xl font-bold text-pink-500 mb-2 tracking-widest">分数の約分<br>マスター</h1>
+                <p class="text-gray-500 font-bold text-sm">いっしょに勉強する友だちを選ぼう！</p>
+            </div>
+
+            <!-- キャラクター選択 -->
+            <div class="flex gap-4">
+                <button class="bubble-btn w-16 h-16 bg-blue-50 rounded-2xl text-3xl flex items-center justify-center border-4 border-transparent hover:border-blue-300 focus:border-blue-400 focus:outline-none ring-offset-2 focus:ring-2 ring-blue-200" onclick="selectChar('🦉', 'フクロウ')">🦉</button>
+                <button class="bubble-btn w-16 h-16 bg-blue-50 rounded-2xl text-3xl flex items-center justify-center border-4 border-transparent hover:border-blue-300 focus:border-blue-400 focus:outline-none ring-offset-2 focus:ring-2 ring-blue-200" onclick="selectChar('🐥', 'ヒヨコ')">🐥</button>
+                <button class="bubble-btn w-16 h-16 bg-blue-50 rounded-2xl text-3xl flex items-center justify-center border-4 border-transparent hover:border-blue-300 focus:border-blue-400 focus:outline-none ring-offset-2 focus:ring-2 ring-blue-200" onclick="selectChar('🧸', 'クマさん')">🧸</button>
+            </div>
+
+            <!-- ステータス表示 -->
+            <div class="flex flex-col items-center w-full">
+                <!-- 吹き出し -->
+                <div class="speech-bubble bubble-bottom mb-4 w-64 min-h-[60px] flex items-center justify-center">
+                    <p id="start-char-talk" class="text-gray-700 font-bold text-sm leading-snug">よろしくね！<br>いっしょに がんばろう！</p>
+                </div>
+                
+                <!-- キャラ表示 -->
+                <div class="char-wrapper text-7xl float-anim mb-4" id="start-char-view">
+                    <div id="start-aura"></div>
+                    <span id="preview-emoji" class="char-body">🦉</span>
+                    <div id="start-accessories"></div>
+                </div>
+                
+                <!-- レベル等の情報 -->
+                <div class="flex flex-col items-center gap-3 w-full px-8">
+                    <div id="title-label" class="text-lg font-bold text-pink-500 bg-pink-50 px-6 py-1 rounded-full border border-pink-100">かけだしフクロウ</div>
+                    
+                    <div class="flex items-center gap-2">
+                        <label for="level-select" class="text-xs font-bold text-gray-400">レベル:</label>
+                        <select id="level-select" onchange="changeLevel(this.value)" class="custom-select bg-yellow-100 px-4 py-1.5 rounded-full text-yellow-800 font-bold text-sm border-2 border-yellow-200 outline-none focus:ring-2 focus:ring-yellow-300 transition-all cursor-pointer">
+                            <!-- JSで生成 -->
+                        </select>
+                    </div>
+                    
+                    <!-- 進捗バー -->
+                    <div class="flex flex-col items-center gap-1 w-full max-w-[200px]">
+                        <div class="flex justify-between w-full text-[10px] font-bold text-gray-400 px-1">
+                            <span>ぼうけんのきろく</span>
+                            <span><span id="total-solved-display">0</span> / 100</span>
+                        </div>
+                        <div class="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+                            <div id="progress-fill" class="h-full bg-gradient-to-r from-blue-300 to-blue-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- スタートボタン -->
+            <button class="bubble-btn w-full h-16 bg-gradient-to-r from-pink-400 to-orange-400 text-white text-2xl font-bold rounded-2xl shadow-lg mt-2 flex items-center justify-center gap-2" onclick="startGame()">
+                <span>▶</span> スタート！
+            </button>
+        </div>
+
+        <!-- ====================
+             ゲーム画面
+        ==================== -->
+        <div id="game-ui" class="hidden h-full flex flex-col justify-between">
+            <!-- ヘッダー -->
+            <div class="flex items-center justify-between mb-1 shrink-0">
+                <button onclick="backToStart()" class="bubble-btn flex items-center gap-1 text-gray-400 text-xs font-bold hover:text-pink-400 px-2 py-2 rounded-lg hover:bg-gray-50">
+                    <span>🏠</span> もどる
+                </button>
+                <div class="flex gap-2">
+                    <div class="bg-pink-100 text-pink-600 px-3 py-1 rounded-full font-bold text-xs border border-pink-200">
+                        Lv.<span id="display-level">1</span>
+                    </div>
+                    <div class="bg-yellow-100 text-yellow-600 px-3 py-1 rounded-full font-bold text-xs border border-yellow-200">
+                        あと <span id="display-remain">10</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- キャラ＆メッセージ -->
+            <div class="flex items-center gap-4 px-2 mb-1 h-20 shrink-0">
+                <div class="char-wrapper text-5xl float-anim shrink-0" id="game-char-view">
+                    <div id="game-aura"></div>
+                    <span id="game-char" class="char-body">🦉</span>
+                    <div id="game-accessories"></div>
+                </div>
+                <div class="speech-bubble bubble-left flex-grow py-2">
+                    <p id="feedback-text" class="text-gray-700 font-bold text-sm leading-tight text-center">約分しよう！</p>
+                </div>
+            </div>
+
+            <!-- 問題エリア（メイン） -->
+            <div class="flex-grow flex items-center justify-center px-2 relative -mt-4 mb-2">
+                <div class="flex items-center gap-4 sm:gap-8 relative w-full justify-center">
+                    
+                    <!-- 出題（左辺） -->
+                    <div class="flex flex-col items-center w-16 sm:w-20 relative z-0">
+                        <!-- メモ機能レイヤー -->
+                        <div id="memo-layer" class="hidden">
+                            <div class="memo-container"></div>
+                            <canvas id="memo-canvas"></canvas>
+                            <!-- メモ消去ボタン -->
+                            <button onclick="clearMemo()" class="pointer-events-auto absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-600 text-white text-[10px] px-3 py-1.5 rounded-full shadow-lg active:scale-95 flex items-center gap-1 z-[70] w-max">
+                                <span>🗑️</span> 消す
+                            </button>
+                        </div>
+
+                        <div id="q-num" class="text-5xl font-bold text-gray-800 mb-2">4</div>
+                        <div class="fraction-line"></div>
+                        <div id="q-den" class="text-5xl font-bold text-gray-800 mt-2">8</div>
+                    </div>
+
+                    <div class="text-4xl text-gray-400 font-bold">=</div>
+
+                    <!-- 解答（右辺） -->
+                    <div class="flex flex-col items-center w-24 relative z-[40]">
+                        <div id="box-num" class="input-box w-20 h-16 sm:w-24 sm:h-20 flex items-center justify-center text-4xl font-bold border-4 border-gray-200 rounded-2xl bg-gray-50 text-blue-600 active" onclick="switchFocus('num')">?</div>
+                        <div class="fraction-line my-2 bg-gray-800"></div>
+                        <div id="box-den" class="input-box w-20 h-16 sm:w-24 sm:h-20 flex items-center justify-center text-4xl font-bold border-4 border-gray-200 rounded-2xl bg-gray-50 text-blue-600" onclick="switchFocus('den')">?</div>
+                    </div>
+
+                    <!-- 正解アニメーションオーバーレイ -->
+                    <div id="correct-overlay" class="hidden absolute left-1/2 top-[50%] -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[80] flex flex-col items-center">
+                        <svg width="180" height="180" viewBox="0 0 100 100" class="maru-anim">
+                            <circle cx="50" cy="50" r="40" stroke="#FF4D4D" stroke-width="8" fill="none" stroke-linecap="round" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- コントロール（テンキー） -->
+            <div class="bg-blue-50 p-3 rounded-[1.5rem] relative z-[50] shrink-0 border-2 border-blue-100">
+                <!-- メモ切り替えボタン -->
+                <button id="memo-btn" class="absolute -top-10 right-4 bg-blue-400 hover:bg-blue-500 text-white px-4 py-1.5 rounded-t-xl font-bold shadow-md transition-colors text-sm flex items-center gap-1" onclick="toggleMemo()">
+                    <span>✏️</span> メモ
+                </button>
+
+                <div class="grid grid-cols-3 gap-2">
+                    <button class="key-btn bubble-btn h-12 rounded-xl text-2xl font-bold text-gray-600 shadow-sm" onclick="inputNum(1)">1</button>
+                    <button class="key-btn bubble-btn h-12 rounded-xl text-2xl font-bold text-gray-600 shadow-sm" onclick="inputNum(2)">2</button>
+                    <button class="key-btn bubble-btn h-12 rounded-xl text-2xl font-bold text-gray-600 shadow-sm" onclick="inputNum(3)">3</button>
+                    <button class="key-btn bubble-btn h-12 rounded-xl text-2xl font-bold text-gray-600 shadow-sm" onclick="inputNum(4)">4</button>
+                    <button class="key-btn bubble-btn h-12 rounded-xl text-2xl font-bold text-gray-600 shadow-sm" onclick="inputNum(5)">5</button>
+                    <button class="key-btn bubble-btn h-12 rounded-xl text-2xl font-bold text-gray-600 shadow-sm" onclick="inputNum(6)">6</button>
+                    <button class="key-btn bubble-btn h-12 rounded-xl text-2xl font-bold text-gray-600 shadow-sm" onclick="inputNum(7)">7</button>
+                    <button class="key-btn bubble-btn h-12 rounded-xl text-2xl font-bold text-gray-600 shadow-sm" onclick="inputNum(8)">8</button>
+                    <button class="key-btn bubble-btn h-12 rounded-xl text-2xl font-bold text-gray-600 shadow-sm" onclick="inputNum(9)">9</button>
+                    <button class="key-btn bubble-btn h-12 rounded-xl text-lg font-bold text-red-400 shadow-sm" onclick="clearNum()">けす</button>
+                    <button class="key-btn bubble-btn h-12 rounded-xl text-2xl font-bold text-gray-600 shadow-sm" onclick="inputNum(0)">0</button>
+                    <!-- 決定ボタン -->
+                    <button id="check-btn" class="h-12 rounded-xl text-lg font-bold bg-pink-400 text-white shadow-[0_4px_0_#db2777] active:shadow-none active:translate-y-1 active:bg-pink-500 transition-colors" onclick="checkAnswer()">できた！</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ロック通知モーダル -->
+        <div id="lock-modal" class="hidden fixed inset-0 z-[200] bg-black/40 flex items-center justify-center p-6 backdrop-blur-sm transition-opacity">
+            <div class="bg-white rounded-3xl p-8 shadow-2xl text-center max-w-[280px] animate-[popIn_0.3s_ease-out]">
+                <div class="text-5xl mb-4">🔒</div>
+                <p id="lock-message" class="text-gray-700 font-bold mb-6 text-lg">前のレベルをクリアしてね！</p>
+                <button onclick="closeLockModal()" class="w-full py-3 bg-pink-400 hover:bg-pink-500 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all">わかった！</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 紙吹雪描画用 -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <script>
+        /**
+         * アプリの状態管理 (State Management)
+         */
+        const APP_ID = 'yakubun_master_v1'; 
+        const MAX_LEVEL = 10;
+        
+        let state = {
+            // ゲーム進行
+            num: 0, den: 0,           // 現在の問題（分子、分母）
+            correctNum: 0, correctDen: 0, // 正解
+            
+            // ユーザー進捗
+            level: 1,
+            maxUnlockedLevel: 1,
+            solvedInLevel: 0,
+            totalSolved: 0,
+            
+            // UI状態
+            activeBox: 'num',         // フォーカス中の入力ボックス ('num' or 'den')
+            userNum: '', userDen: '', // ユーザー入力値
+            
+            // 設定
+            charEmoji: '🦉', charName: 'フクロウ',
+            
+            // 内部ロジック用
+            levelProblemList: [],     // 現在のレベルの問題リスト
+            currentListIndex: 0,
+            isMemoMode: false,
+            isAnswering: true         // 解答受付中かどうか
+        };
+
+        /**
+         * Web Audio API によるサウンドエンジン
+         * 外部ファイルを使わず、ブラウザで音を生成します。
+         */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playTone(freq, type, duration, volume = 0.1) {
+            // ユーザー操作時にコンテキストを再開（iOS対策）
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            // 音の減衰（自然な響きにする）
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const SFX = {
+            // 正解音（ピンポン！）: 高いド -> 高いミ
+            correct: () => { 
+                playTone(1046.50, 'sine', 0.15, 0.1);
+                setTimeout(() => playTone(1318.51, 'sine', 0.4, 0.1), 100);
+            },
+            // 不正解音（ブブー）: 低いラ
+            wrong: () => { playTone(220, 'triangle', 0.3, 0.15); },
+            // ファンファーレ（クリア時）: メジャーコード分散和音
+            fanfare: () => { 
+                [523, 659, 783, 1046].forEach((f, i) => {
+                    setTimeout(() => playTone(f, 'square', 0.4, 0.05), i * 120);
+                });
+            },
+            // タップ音（ポコッ）
+            tap: () => playTone(600, 'sine', 0.05, 0.05)
+        };
+
+        /**
+         * ユーティリティ関数
+         */
+        // 最大公約数を求める (Greatest Common Divisor)
+        function getGCD(a, b) { return b === 0 ? a : getGCD(b, a % b); }
+
+        const praiseMessages = ["すごい！", "その調子！", "正解！", "ばっちり！", "やるね！", "天才かも！"];
+
+        // レベルごとの応援メッセージ
+        function getStartTalk(lv) {
+            if (lv >= 10) return "ついにここまで来たね！<br>伝説の約分王になろう！";
+            if (lv >= 8) return "すごいレベルだ！<br>むずかしい問題もへっちゃら？";
+            if (lv >= 5) return "もうすぐ達人だね！<br>どんどん解いていこう！";
+            if (lv >= 3) return "なれてきたかな？<br>数をよく見て考えよう！"; 
+            if (lv >= 2) return "レベル2になったね！<br>少しずつ難しくなるよ！";
+            return "よろしくね！<br>いっしょに がんばろう！";
+        }
+
+        // キャラクターアクセサリーの位置調整データ
+        // ヒヨコ(🐥)を追加して調整
+        const charOffsets = {
+            '🦉': { hatY: { start: -12, game: -8 }, chestY: { start: 14, game: 10 } },
+            '🐥': { hatY: { start: -12, game: -10 }, chestY: { start: 16, game: 12 } }, // ヒヨコ用オフセット
+            '🧸': { hatY: { start: -18, game: -14 }, chestY: { start: 8, game: 4 } }
+        };
+
+        /**
+         * ビジュアル更新ロジック
+         */
+        function updateAccessories(currentLevel) {
+            const startAcc = document.getElementById('start-accessories');
+            const gameAcc = document.getElementById('game-accessories');
+            if(!startAcc || !gameAcc) return;
+            startAcc.innerHTML = ''; gameAcc.innerHTML = '';
+            
+            // オーラの更新
+            const startAura = document.getElementById('start-aura');
+            const gameAura = document.getElementById('game-aura');
+            
+            // オーラのスタイル生成関数
+            const getAuraClass = (lv) => {
+                if (lv >= 10) return "aura-bg legend-aura"; // 伝説：輝く
+                if (lv >= 7) return "aura-bg bg-yellow-200 opacity-60"; // 金
+                if (lv >= 6) return "aura-bg bg-gray-200 opacity-60"; // 銀
+                if (lv >= 5) return "aura-bg bg-orange-200 opacity-50"; // 銅
+                return ""; // なし
+            };
+            
+            const lv = currentLevel || state.level;
+            const auraClass = getAuraClass(lv);
+            if (auraClass) {
+                if(startAura) startAura.className = auraClass;
+                if(gameAura) gameAura.className = auraClass;
+            } else {
+                if(startAura) startAura.className = "";
+                if(gameAura) gameAura.className = "";
+            }
+
+            if (lv < 2) return;
+
+            const offsets = charOffsets[state.charEmoji] || charOffsets['🦉'];
+            
+            // レベルに応じたアクセサリー定義（称号との整合性を修正版 + Lv8以降の2点盛り対応）
+            const configs = {
+                2: { emoji: '🌱', start: `top:${offsets.hatY.start - 10}px; right:-15px; font-size:1.5rem; transform: rotate(20deg);`, game: `top:${offsets.hatY.game - 5}px; right:-8px; font-size:1.0rem; transform: rotate(20deg);` }, // 見習い＝若葉
+                3: { emoji: '⭐', start: 'top:0px; left:-25px; font-size:1.8rem;', game: 'top:2px; left:-6px; font-size:1.0rem;' }, // 期待の星＝星
+                4: { emoji: '🎓', start: `top:${offsets.hatY.start}px; left:50%; transform:translateX(-50%); font-size:1.6rem;`, game: `top:${offsets.hatY.game}px; left:50%; transform:translateX(-50%); font-size:0.9rem;` }, // はかせ＝角帽
+                
+                // --- メダルの位置を調整（少し下げる） ---
+                5: { emoji: '🥉', start: `bottom:${offsets.chestY.start - 8}px; left:50%; transform:translateX(-50%); font-size:1.8rem;`, game: `bottom:${offsets.chestY.game - 4}px; left:50%; transform:translateX(-50%); font-size:1.0rem;` }, // 銅メダリスト
+                6: { emoji: '🥈', start: `bottom:${offsets.chestY.start - 8}px; left:50%; transform:translateX(-50%); font-size:1.8rem;`, game: `bottom:${offsets.chestY.game - 4}px; left:50%; transform:translateX(-50%); font-size:1.0rem;` }, // 銀の計算士
+                7: { emoji: '🥇', start: `bottom:${offsets.chestY.start - 8}px; left:50%; transform:translateX(-50%); font-size:1.8rem;`, game: `bottom:${offsets.chestY.game - 4}px; left:50%; transform:translateX(-50%); font-size:1.0rem;` }, // 黄金の賢者
+                
+                8: { // 約分マスター（2点装備：トロフィー＋勲章）
+                    multi: [
+                        { emoji: '🏆', start: 'bottom:0px; right:-25px; font-size:2.0rem;', game: 'bottom:0px; right:-12px; font-size:1.2rem;' },
+                        { emoji: '🎖️', start: `bottom:${offsets.chestY.start - 10}px; left:50%; transform:translateX(-50%); font-size:1.8rem;`, game: `bottom:${offsets.chestY.game - 5}px; left:50%; transform:translateX(-50%); font-size:1.0rem;` }
+                    ]
+                },
+                9: { // 天才約分師（2点装備：杖＋宝石）
+                    multi: [
+                        { emoji: '🪄', start: 'top:10px; right:-25px; font-size:2.0rem; transform: rotate(15deg);', game: 'top:5px; right:-12px; font-size:1.2rem; transform: rotate(15deg);' },
+                        { emoji: '💎', start: `bottom:${offsets.chestY.start}px; left:50%; transform:translateX(-50%); font-size:1.8rem;`, game: `bottom:${offsets.chestY.game}px; left:50%; transform:translateX(-50%); font-size:1.0rem;` }
+                    ]
+                },
+                10: { // 伝説の約分王（4点装備：王冠＋杖＋赤マント＋太陽のエンブレム）
+                    multi: [
+                        { emoji: '👑', start: `top:${offsets.hatY.start - 4}px; left:50%; transform:translateX(-50%); font-size:1.8rem;`, game: `top:${offsets.hatY.game - 2}px; left:50%; transform:translateX(-50%); font-size:1.0rem;` }, // 王冠（位置下げ）
+                        { emoji: '🪄', start: 'top:10px; right:-25px; font-size:2.0rem; transform: rotate(15deg);', game: 'top:5px; right:-12px; font-size:1.2rem; transform: rotate(15deg);' },
+                        // マントはCSS描画に変更（絵文字だと黄色と被るため）
+                        { type: 'css', className: 'red-cape' },
+                        // 太陽のエンブレム（位置調整：少し下げる）
+                        { emoji: '☀️', start: `bottom:${offsets.chestY.start - 10}px; left:50%; transform:translateX(-50%); font-size:1.8rem; z-index:21; filter: drop-shadow(0 0 5px orange);`, game: `bottom:${offsets.chestY.game - 5}px; left:50%; transform:translateX(-50%); font-size:1.0rem; z-index:21;` }
+                    ]
+                }
+            };
+
+            const config = configs[lv] || (lv > 10 ? configs[10] : null);
+            if (!config) return;
+
+            const createEl = (item, style) => {
+                const div = document.createElement('div');
+                if (item.type === 'css') {
+                    div.className = item.className; // CSSクラスで描画
+                } else {
+                    div.className = 'accessory';
+                    div.style = style;
+                    div.innerText = item.emoji;
+                }
+                return div;
+            };
+            
+            if (config.multi) {
+                config.multi.forEach(c => {
+                    // CSSタイプと絵文字タイプで分岐
+                    if (c.type === 'css') {
+                        startAcc.appendChild(createEl(c, null));
+                        // ゲーム画面用にもクローンして追加
+                        const clone = createEl(c, null);
+                        gameAcc.appendChild(clone);
+                    } else {
+                        const elStart = createEl({emoji: c.emoji}, c.start);
+                        startAcc.appendChild(elStart);
+                        const elGame = createEl({emoji: c.emoji}, c.game);
+                        gameAcc.appendChild(elGame);
+                    }
+                });
+            } else if (config.emoji) {
+                startAcc.appendChild(createEl({emoji: config.emoji}, config.start));
+                gameAcc.appendChild(createEl({emoji: config.emoji}, config.game));
+            }
+        }
+
+        // 称号の生成
+        function getLevelTitle(lv) {
+            // レベルごとに異なる称号を定義
+            const titles = {
+                1: "かけだし",
+                2: "見習い",
+                3: "期待の星",
+                4: "数学はかせ",
+                5: "銅メダリスト",
+                6: "銀の計算士",
+                7: "黄金の賢者",
+                8: "約分マスター",
+                9: "天才約分師",
+                10: "伝説の約分王"
+            };
+            return titles[lv] || "かけだし";
+        }
+
+        function updateTitleAndPreview() {
+            // キャラクター表示更新
+            document.getElementById('preview-emoji').innerText = state.charEmoji;
+            document.getElementById('game-char').innerText = state.charEmoji;
+            
+            // 称号更新
+            let titleText = getLevelTitle(state.level) + " " + state.charName;
+            const titleEl = document.getElementById('title-label');
+            titleEl.innerText = titleText;
+            
+            // レベルによる色変え
+            if (state.level >= 10) {
+                titleEl.className = "text-lg font-bold text-yellow-600 bg-yellow-100 px-6 py-1 rounded-full border-2 border-yellow-400";
+            } else if (state.level >= 5) {
+                titleEl.className = "text-lg font-bold text-blue-500 bg-blue-50 px-6 py-1 rounded-full border-2 border-blue-200";
+            } else {
+                titleEl.className = "text-lg font-bold text-pink-500 bg-pink-50 px-6 py-1 rounded-full border border-pink-100";
+            }
+
+            // セレクトボックスの選択状態
+            document.getElementById('level-select').value = state.level;
+            
+            // 進捗バー更新
+            document.getElementById('total-solved-display').innerText = state.totalSolved;
+            const progressPercent = Math.min(100, (state.totalSolved / 100) * 100);
+            document.getElementById('progress-fill').style.width = `${progressPercent}%`;
+
+            // 吹き出しメッセージ
+            document.getElementById('start-char-talk').innerHTML = getStartTalk(state.level);
+            
+            // アクセサリー反映
+            updateAccessories(state.level);
+        }
+
+        // レベルプルダウンの生成
+        function initLevelSelect() {
+            const select = document.getElementById('level-select');
+            select.innerHTML = '';
+            for(let i = 1; i <= MAX_LEVEL; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.innerText = `レベル ${i}`;
+                if (i > state.maxUnlockedLevel) {
+                    opt.innerText += " (🔒)";
+                }
+                select.appendChild(opt);
+            }
+        }
+
+        /**
+         * アプリ操作アクション
+         */
+        function changeLevel(newLv) {
+            SFX.tap();
+            const targetLv = parseInt(newLv);
+            
+            // ロックされていたら戻す
+            if (targetLv > state.maxUnlockedLevel) {
+                showLockModal(`レベル${state.maxUnlockedLevel}をクリアしてね！`);
+                document.getElementById('level-select').value = state.level;
+                return;
+            }
+            
+            state.level = targetLv;
+            state.solvedInLevel = 0; // レベルを変えたらそのレベルの進捗はリセット
+            state.levelProblemList = [];
+            
+            updateAccessories(state.level);
+            updateTitleAndPreview();
+            save();
+        }
+
+        function showLockModal(msg) {
+            const modal = document.getElementById('lock-modal');
+            const msgEl = document.getElementById('lock-message');
+            msgEl.innerText = msg;
+            modal.classList.remove('hidden');
+        }
+
+        function closeLockModal() {
+            SFX.tap();
+            document.getElementById('lock-modal').classList.add('hidden');
+        }
+
+        function selectChar(emoji, name) {
+            SFX.tap();
+            state.charEmoji = emoji;
+            state.charName = name;
+            updateTitleAndPreview();
+            save();
+        }
+
+        function startGame() {
+            SFX.tap();
+            // 画面遷移
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-ui').classList.remove('hidden');
+            
+            // 問題リスト生成（なければ）
+            if (state.levelProblemList.length === 0) generateLevelList();
+            createQuestion();
+        }
+
+        function backToStart() {
+            SFX.tap();
+            // データを更新して保存
+            updateAccessories(state.level);
+            updateTitleAndPreview();
+            initLevelSelect(); // ロック状態の更新反映
+            
+            document.getElementById('start-screen').classList.remove('hidden');
+            document.getElementById('game-ui').classList.add('hidden');
+            
+            // メモモードなら解除
+            if(state.isMemoMode) toggleMemo();
+        }
+
+        /**
+         * 問題生成ロジック
+         */
+        function generateLevelList() {
+            let maxAns, mMin, mMax, filterLevel6Plus = false;
+            
+            // 難易度調整ロジック
+            if (state.level === 1) { maxAns = 6; mMin = 2; mMax = 3; } 
+            else if (state.level === 2) { maxAns = 10; mMin = 2; mMax = 5; } 
+            else if (state.level === 3) { maxAns = 12; mMin = 3; mMax = 7; } 
+            else if (state.level === 4) { maxAns = 15; mMin = 3; mMax = 9; }
+            else if (state.level === 5) { maxAns = 18; mMin = 3; mMax = 12; }
+            else if (state.level >= 6) {
+                maxAns = 20 + (state.level - 6) * 5; 
+                mMin = 4 + Math.floor(state.level / 3);
+                mMax = 12 + Math.floor(state.level / 2);
+                filterLevel6Plus = true; 
+            }
+
+            // 既約分数のプールを作成
+            let pool = [];
+            for (let d = 2; d <= maxAns; d++) {
+                for (let n = 1; n < d; n++) {
+                    if (getGCD(n, d) === 1) {
+                        // 高レベルでは単純すぎる問題（1/2など）を少し減らす
+                        if (filterLevel6Plus && n === 1 && d <= 3) continue;
+                        pool.push({ an: n, ad: d });
+                    }
+                }
+            }
+
+            // 問題を10問ランダム生成
+            let tempQuestions = [];
+            let safetyCounter = 0;
+            while (tempQuestions.length < 10 && safetyCounter < 1000) {
+                safetyCounter++;
+                const base = pool[Math.floor(Math.random() * pool.length)];
+                if (!base) continue;
+                
+                // 倍率（m）をランダム決定
+                let m = Math.floor(Math.random() * (mMax - mMin + 1)) + mMin;
+                const qn = base.an * m; 
+                const qd = base.ad * m;
+                
+                // 重複チェック用キー
+                const key = `${qn}/${qd}`;
+                
+                // 3桁以内かつ重複なしなら採用
+                if (qd < 1000 && !tempQuestions.some(q => q.key === key)) {
+                    tempQuestions.push({ an: base.an, ad: base.ad, qn: qn, qd: qd, key: key });
+                }
+            }
+            // 分母が小さい順にソート（解きやすくする）
+            state.levelProblemList = tempQuestions.sort((a, b) => a.qd - b.qd);
+            state.currentListIndex = 0;
+            state.solvedInLevel = 0;
+        }
+
+        function createQuestion() {
+            state.isAnswering = true;
+            
+            // 全問終了時は再生成
+            if (state.currentListIndex >= state.levelProblemList.length) generateLevelList();
+            
+            const p = state.levelProblemList[state.currentListIndex];
+            state.num = p.qn; state.den = p.qd;
+            state.correctNum = p.an; state.correctDen = p.ad;
+            
+            // 入力欄リセット
+            state.userNum = ''; state.userDen = '';
+            state.activeBox = 'num'; // 分子から入力スタート
+            
+            document.getElementById('correct-overlay').classList.add('hidden');
+            document.getElementById('feedback-text').innerText = "約分してみよう！";
+            
+            clearMemo();
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            document.getElementById('q-num').innerText = state.num;
+            document.getElementById('q-den').innerText = state.den;
+            
+            document.getElementById('box-num').innerText = state.userNum || '?';
+            document.getElementById('box-den').innerText = state.userDen || '?';
+            
+            // アクティブな入力欄を強調
+            const baseClass = "input-box w-20 h-16 sm:w-24 sm:h-20 flex items-center justify-center text-4xl font-bold border-4 rounded-2xl";
+            
+            document.getElementById('box-num').className = `${baseClass} ${state.activeBox === 'num' ? 'active border-blue-400 bg-blue-50' : 'bg-gray-50 border-gray-200 text-gray-400'}`;
+            document.getElementById('box-den').className = `${baseClass} ${state.activeBox === 'den' ? 'active border-blue-400 bg-blue-50' : 'bg-gray-50 border-gray-200 text-gray-400'}`;
+            
+            // 文字色のアクティブ制御
+            if(state.userNum) document.getElementById('box-num').classList.add('text-blue-600');
+            if(state.userDen) document.getElementById('box-den').classList.add('text-blue-600');
+
+            document.getElementById('display-level').innerText = state.level;
+            document.getElementById('display-remain').innerText = 10 - state.solvedInLevel;
+        }
+
+        function switchFocus(box) { 
+            if(!state.isAnswering) return; 
+            SFX.tap(); 
+            state.activeBox = box; 
+            updateDisplay(); 
+        }
+
+        function inputNum(n) {
+            if(!state.isAnswering) return;
+            SFX.tap();
+            // 3桁まで入力可
+            if (state.activeBox === 'num') { 
+                if (state.userNum.length < 3) state.userNum += n; 
+            } else { 
+                if (state.userDen.length < 3) state.userDen += n; 
+            }
+            updateDisplay();
+        }
+
+        function clearNum() { 
+            if(!state.isAnswering) return; 
+            SFX.tap(); 
+            if (state.activeBox === 'num') state.userNum = ''; 
+            else state.userDen = ''; 
+            updateDisplay(); 
+        }
+
+        function checkAnswer() {
+            if(!state.isAnswering) return;
+            
+            const uNum = parseInt(state.userNum);
+            const uDen = parseInt(state.userDen);
+            const feedbackEl = document.getElementById('feedback-text');
+            const overlayEl = document.getElementById('correct-overlay');
+            
+            // 未入力チェック
+            if (isNaN(uNum) || isNaN(uDen)) { 
+                feedbackEl.innerText = "数字を入れてね！"; 
+                SFX.wrong();
+                return; 
+            }
+            
+            // 正誤判定
+            if (uNum === state.correctNum && uDen === state.correctDen) {
+                // --- 正解！ ---
+                state.isAnswering = false; 
+                state.solvedInLevel++; 
+                state.totalSolved++; 
+                state.currentListIndex++;
+                
+                overlayEl.classList.remove('hidden'); // 花丸表示
+                feedbackEl.innerText = praiseMessages[Math.floor(Math.random() * praiseMessages.length)];
+                SFX.correct();
+                
+                // レベルクリア判定（10問正解）
+                if (state.solvedInLevel >= 10) {
+                    // 次のレベルを解放
+                    if (state.level >= state.maxUnlockedLevel && state.level < MAX_LEVEL) {
+                        state.maxUnlockedLevel = state.level + 1;
+                    }
+                    
+                    // レベルアップ処理
+                    state.level++; 
+                    if(state.level > MAX_LEVEL) state.level = MAX_LEVEL; // カンスト
+                    
+                    state.levelProblemList = []; 
+                    save();
+                    
+                    // お祝い演出
+                    setTimeout(() => { 
+                        backToStart(); 
+                        SFX.fanfare(); 
+                        launchConfetti(); 
+                        // レベルアップモーダル的なものを出す代わりに、スタート画面のキャラが変化していることで表現
+                    }, 1500);
+                } else {
+                    // 次の問題へ
+                    save(); 
+                    if (state.solvedInLevel % 5 === 0) launchConfetti(); // 5問ごとに少し紙吹雪
+                    setTimeout(createQuestion, 1500);
+                }
+            } else {
+                // --- 不正解 ---
+                SFX.wrong();
+                // ヒント出し
+                if (uNum / uDen === state.num / state.den) {
+                    feedbackEl.innerText = "まだ割れるよ！";
+                } else {
+                    feedbackEl.innerText = "計算しなおしてみよう！";
+                }
+                // 入力をリセット
+                state.userNum = ''; state.userDen = ''; 
+                updateDisplay();
+            }
+        }
+
+        /**
+         * メモ機能 (Canvas)
+         */
+        const memoCanvas = document.getElementById('memo-canvas');
+        const mCtx = memoCanvas.getContext('2d');
+        let isDrawing = false;
+        
+        function toggleMemo() {
+            SFX.tap(); 
+            state.isMemoMode = !state.isMemoMode;
+            
+            const layer = document.getElementById('memo-layer');
+            const btn = document.getElementById('memo-btn');
+            
+            if (state.isMemoMode) {
+                layer.classList.remove('hidden');
+                layer.classList.add('active'); // ポインターイベント有効化
+                btn.innerHTML = '<span>✅</span> とじる'; 
+                btn.classList.replace('bg-blue-400', 'bg-green-500');
+                btn.classList.replace('hover:bg-blue-500', 'hover:bg-green-600');
+                
+                // キャンバスサイズ調整
+                resizeMemoCanvas();
+            } else {
+                layer.classList.add('hidden');
+                layer.classList.remove('active');
+                btn.innerHTML = '<span>✏️</span> メモ'; 
+                btn.classList.replace('bg-green-500', 'bg-blue-400');
+                btn.classList.replace('hover:bg-green-600', 'hover:bg-blue-500');
+            }
+        }
+        
+        function resizeMemoCanvas() {
+            const layer = document.getElementById('memo-layer');
+            const rect = layer.getBoundingClientRect();
+            memoCanvas.width = rect.width; 
+            memoCanvas.height = rect.height;
+            
+            // 描画設定
+            mCtx.strokeStyle = '#2563EB'; // blue-600
+            mCtx.lineWidth = 3; 
+            mCtx.lineCap = 'round'; 
+            mCtx.lineJoin = 'round';
+        }
+        
+        function clearMemo() { 
+            if(mCtx) mCtx.clearRect(0, 0, memoCanvas.width, memoCanvas.height); 
+        }
+        
+        // 描画イベントハンドラ
+        function getPos(e) {
+            const rect = memoCanvas.getBoundingClientRect();
+            // マルチタッチ対策：最初の指だけ追跡
+            const clientX = (e.touches ? e.touches[0].clientX : e.clientX);
+            const clientY = (e.touches ? e.touches[0].clientY : e.clientY);
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+        
+        function startDraw(e) { 
+            if (!state.isMemoMode) return; 
+            isDrawing = true; 
+            const pos = getPos(e); 
+            mCtx.beginPath(); 
+            mCtx.moveTo(pos.x, pos.y); 
+            // スクロール防止
+            if (e.type === 'touchstart') e.preventDefault(); 
+        }
+        
+        function draw(e) { 
+            if (!isDrawing) return; 
+            const pos = getPos(e); 
+            mCtx.lineTo(pos.x, pos.y); 
+            mCtx.stroke(); 
+            if (e.type === 'touchmove') e.preventDefault(); 
+        }
+        
+        function stopDraw() { isDrawing = false; }
+        
+        // イベントリスナー登録
+        memoCanvas.addEventListener('mousedown', startDraw); 
+        memoCanvas.addEventListener('touchstart', startDraw, {passive: false});
+        memoCanvas.addEventListener('mousemove', draw); 
+        memoCanvas.addEventListener('touchmove', draw, {passive: false});
+        window.addEventListener('mouseup', stopDraw); 
+        window.addEventListener('touchend', stopDraw);
+
+        /**
+         * 紙吹雪エフェクト (Confetti)
+         */
+        const confCanvas = document.getElementById('confetti-canvas');
+        const cCtx = confCanvas.getContext('2d');
+        let particles = [];
+        
+        function launchConfetti() {
+            confCanvas.width = window.innerWidth; 
+            confCanvas.height = window.innerHeight;
+            particles = [];
+            
+            // パーティクル生成
+            const particleCount = 80;
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: confCanvas.width / 2, 
+                    y: confCanvas.height / 2,
+                    vx: (Math.random() - 0.5) * 15, 
+                    vy: (Math.random() - 0.8) * 15,
+                    size: Math.random() * 8 + 4, 
+                    color: `hsl(${Math.random() * 360}, 80%, 60%)`, 
+                    gravity: 0.4,
+                    rotation: Math.random() * 360,
+                    rotationSpeed: (Math.random() - 0.5) * 10
+                });
+            }
+            updateConfetti();
+        }
+        
+        function updateConfetti() {
+            cCtx.clearRect(0, 0, confCanvas.width, confCanvas.height);
+            
+            particles.forEach((p, i) => {
+                p.x += p.vx; 
+                p.y += p.vy; 
+                p.vy += p.gravity;
+                p.rotation += p.rotationSpeed;
+                
+                cCtx.save();
+                cCtx.translate(p.x, p.y);
+                cCtx.rotate(p.rotation * Math.PI / 180);
+                cCtx.fillStyle = p.color; 
+                cCtx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                cCtx.restore();
+                
+                // 画面外に出たら削除
+                if (p.y > confCanvas.height) particles.splice(i, 1);
+            });
+            
+            if (particles.length > 0) requestAnimationFrame(updateConfetti);
+        }
+
+        /**
+         * データ永続化 (Storage)
+         */
+        function save() { 
+            try {
+                localStorage.setItem(APP_ID, JSON.stringify({
+                    level: state.level, 
+                    maxUnlockedLevel: state.maxUnlockedLevel,
+                    charEmoji: state.charEmoji, 
+                    charName: state.charName,
+                    totalSolved: state.totalSolved, 
+                    solvedInLevel: state.solvedInLevel
+                })); 
+            } catch (e) {
+                console.warn('Storage save failed:', e);
+            }
+        }
+        
+        function load() {
+            try {
+                const data = localStorage.getItem(APP_ID);
+                if (data) {
+                    const p = JSON.parse(data);
+                    state.level = p.level || 1;
+                    
+                    // 【修正済み】全レベル解放を解除し、元のロジックに戻しました
+                    state.maxUnlockedLevel = Math.max(1, p.maxUnlockedLevel || 1);
+
+                    state.charEmoji = p.charEmoji || '🦉'; 
+                    state.charName = p.charName || 'フクロウ';
+                    state.totalSolved = p.totalSolved || 0;
+                    state.solvedInLevel = p.solvedInLevel || 0;
+                } else {
+                    // 新規の場合はレベル1のみ解放
+                    state.maxUnlockedLevel = 1;
+                }
+            } catch (e) {
+                console.warn('Storage load failed:', e);
+                state.maxUnlockedLevel = 1;
+            }
+            // 初期化処理
+            initLevelSelect();
+            updateTitleAndPreview();
+        }
+        
+        // アプリ起動
+        load();
+        
+        // リサイズ時のキャンバス調整
+        window.addEventListener('resize', () => {
+            if(state.isMemoMode) resizeMemoCanvas();
+        });
+        
+    </script>
+</body>
+</html>
