@@ -13,8 +13,10 @@
         body {
             font-family: 'Kiwi Maru', serif;
             background-color: #FFF9F0; /* 目に優しいクリーム色 */
-            overflow: hidden; /* スクロール禁止 */
-            touch-action: none; /* ダブルタップズーム等の防止 */
+            /* overflow: hidden;  <-- 削除: スクロールできるようにする */
+            overflow-y: auto; /* 縦スクロールを許可 */
+            /* touch-action: none; <-- 変更: 縦スクロール操作を許可 */
+            touch-action: pan-y; 
             user-select: none; /* テキスト選択防止 */
             -webkit-tap-highlight-color: transparent;
         }
@@ -218,19 +220,19 @@
 <body class="flex items-center justify-center min-h-screen p-2 sm:p-4">
 
     <!-- アプリのメインコンテナ -->
-    <div id="app" class="bg-white p-4 rounded-[2rem] shadow-2xl border-4 sm:border-8 border-yellow-200 w-full h-[95vh] max-h-[800px] max-w-md flex flex-col relative overflow-hidden">
+    <div id="app" class="bg-white p-4 rounded-[2rem] shadow-2xl border-4 sm:border-8 border-yellow-200 w-full h-[95vh] max-h-[800px] max-w-md flex flex-col relative overflow-y-auto">
         
         <!-- ====================
              スタート画面
         ==================== -->
-        <div id="start-screen" class="absolute inset-0 z-[50] bg-white flex flex-col items-center justify-between p-4 text-center pb-8">
-            <div class="mt-4">
+        <div id="start-screen" class="absolute inset-0 z-[50] bg-white flex flex-col items-center justify-between p-4 text-center pb-8 overflow-y-auto">
+            <div class="mt-4 shrink-0">
                 <h1 class="text-3xl font-bold text-pink-500 mb-2 tracking-widest">分数の約分<br>マスター</h1>
                 <p class="text-gray-500 font-bold text-sm">いっしょに勉強する友だちを選ぼう！</p>
             </div>
 
             <!-- キャラクター選択 -->
-            <div class="flex gap-4">
+            <div class="flex gap-4 shrink-0">
                 <button class="bubble-btn w-16 h-16 bg-blue-50 rounded-2xl text-3xl flex items-center justify-center border-4 border-transparent hover:border-blue-300 focus:border-blue-400 focus:outline-none ring-offset-2 focus:ring-2 ring-blue-200" onclick="selectChar('🦉', 'フクロウ')">🦉</button>
                 <button class="bubble-btn w-16 h-16 bg-blue-50 rounded-2xl text-3xl flex items-center justify-center border-4 border-transparent hover:border-blue-300 focus:border-blue-400 focus:outline-none ring-offset-2 focus:ring-2 ring-blue-200" onclick="selectChar('🐥', 'ヒヨコ')">🐥</button>
                 <button class="bubble-btn w-16 h-16 bg-blue-50 rounded-2xl text-3xl flex items-center justify-center border-4 border-transparent hover:border-blue-300 focus:border-blue-400 focus:outline-none ring-offset-2 focus:ring-2 ring-blue-200" onclick="selectChar('🧸', 'クマさん')">🧸</button>
@@ -239,19 +241,19 @@
             <!-- ステータス表示 -->
             <div class="flex flex-col items-center w-full">
                 <!-- 吹き出し -->
-                <div class="speech-bubble bubble-bottom mb-4 w-64 min-h-[60px] flex items-center justify-center">
+                <div class="speech-bubble bubble-bottom mb-4 w-64 min-h-[60px] flex items-center justify-center shrink-0">
                     <p id="start-char-talk" class="text-gray-700 font-bold text-sm leading-snug">よろしくね！<br>いっしょに がんばろう！</p>
                 </div>
                 
                 <!-- キャラ表示 -->
-                <div class="char-wrapper text-7xl float-anim mb-4" id="start-char-view">
+                <div class="char-wrapper text-7xl float-anim mb-4 shrink-0" id="start-char-view">
                     <div id="start-aura"></div>
                     <span id="preview-emoji" class="char-body">🦉</span>
                     <div id="start-accessories"></div>
                 </div>
                 
                 <!-- レベル等の情報 -->
-                <div class="flex flex-col items-center gap-3 w-full px-8">
+                <div class="flex flex-col items-center gap-3 w-full px-8 shrink-0">
                     <div id="title-label" class="text-lg font-bold text-pink-500 bg-pink-50 px-6 py-1 rounded-full border border-pink-100">かけだしフクロウ</div>
                     
                     <div class="flex items-center gap-2">
@@ -275,7 +277,7 @@
             </div>
 
             <!-- スタートボタン -->
-            <button class="bubble-btn w-full h-16 bg-gradient-to-r from-pink-400 to-orange-400 text-white text-2xl font-bold rounded-2xl shadow-lg mt-2 flex items-center justify-center gap-2" onclick="startGame()">
+            <button class="bubble-btn w-full h-16 bg-gradient-to-r from-pink-400 to-orange-400 text-white text-2xl font-bold rounded-2xl shadow-lg mt-2 mb-8 flex-none flex items-center justify-center gap-2" onclick="startGame()">
                 <span>▶</span> スタート！
             </button>
         </div>
